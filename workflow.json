@@ -1,0 +1,192 @@
+{
+  "name": "Botpresso",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "={{ $json.body.url }}",
+        "options": {}
+      },
+      "id": "0f26bb3c-f2cc-476b-b1af-3d4cd98463ce",
+      "name": "Get url content",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        816,
+        240
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "titleTag",
+              "cssSelector": "title"
+            },
+            {
+              "key": "metaDesc",
+              "cssSelector": "meta[name=\"description\"]",
+              "returnValue": "attribute",
+              "attribute": "content"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3c67c390-5144-44cb-8618-d7e7e6c6cae5",
+      "name": "Extract title tag and meta description",
+      "type": "n8n-nodes-base.html",
+      "position": [
+        992,
+        240
+      ],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "/seo-metadata-agent",
+        "responseMode": "lastNode",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        528,
+        240
+      ],
+      "id": "37e7062e-25ae-4474-86e1-ec1f6443e56c",
+      "name": "Webhook",
+      "webhookId": "a48e3cdd-5a73-4d14-843e-d8ed0651ac82"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get AI response from Gemini (different structure than OpenAI)\nconst aiResponse = $input.item.json.content.parts[0].text;\nlet variations;\n\ntry {\n  // Clean markdown code blocks if present\n  const cleanJson = aiResponse\n    .replace(/```json\\n?/g, '')\n    .replace(/```\\n?/g, '')\n    .trim();\n  variations = JSON.parse(cleanJson);\n} catch (error) {\n  return {\n    json: {\n      success: false,\n      error: \"Failed to parse AI response\",\n      rawResponse: aiResponse\n    }\n  };\n}\n\n// Get data from previous nodes\nconst webhookData = $('Webhook').item.json.body;\nconst htmlExtractData = $('Extract title tag and meta description').item.json;\n\nconst currentTitle = htmlExtractData.titleTag || 'No title found';\nconst currentDescription = htmlExtractData.metaDesc || 'No description found';\n\n// Format final response\nreturn {\n  json: {\n    success: true,\n    data: {\n      url: webhookData.url,\n      keyword: webhookData.keyword,\n      analysis: {\n        current: {\n          title: currentTitle,\n          titleLength: currentTitle.length,\n          description: currentDescription,\n          descriptionLength: currentDescription.length\n        }\n      },\n      optimizedVariations: variations.variations.map(v => ({\n        title: v.title,\n        titleLength: v.title.length,\n        description: v.description,\n        descriptionLength: v.description.length,\n        strategy: v.strategy,\n        meetsRequirements: {\n          titleLength: v.title.length >= 50 && v.title.length <= 60,\n          descriptionLength: v.description.length >= 150 && v.description.length <= 160\n        }\n      }))\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        240
+      ],
+      "id": "55eacd4a-1f6d-4f3e-85ee-a2d8192fce44",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are a Senior SEO Specialist with 10+ years of experience optimizing metadata for e-commerce and SaaS websites. Your expertise includes:\n- Crafting compelling titles and descriptions that balance keyword optimization with human appeal\n- Understanding search intent and user psychology\n- Writing metadata that improves click-through rates (CTR)\n- Following current SEO best practices and character limits",
+              "role": "model"
+            },
+            {
+              "content": "=CONTEXT:\n- Page URL: {{ $('Webhook').item.json.body.url }}\n- Target Keyword: {{ $('Webhook').item.json.body.keyword }}\n- Current Meta Title: {{ $json.titleTag || 'No title found' }}\n- Current Meta Description: {{ $json.metaDesc || 'No description found' }}\n\nTASK:\nGenerate 3 distinct SEO-optimized variations of the meta title and description. Each variation should use a different psychological strategy:\n1. Urgency/Scarcity (FOMO, limited time, exclusive)\n2. Benefits/Value (what user gains, solutions, outcomes)\n3. Social Proof/Authority (testimonials, ratings, trust signals)\n\nREQUIREMENTS:\n✓ Meta Title: 50-60 characters (strict)\n✓ Meta Description: 150-160 characters (strict)\n✓ Include the target keyword naturally (don't force it)\n✓ Use power words and action verbs\n✓ Include clear call-to-action (CTA)\n✓ Each variation should feel distinct in tone and approach\n\nOUTPUT FORMAT (JSON only, no markdown):\n{\n  \"variations\": [\n    {\n      \"title\": \"Your optimized title here\",\n      \"description\": \"Your optimized description here\",\n      \"strategy\": \"urgency\"\n    },\n    {\n      \"title\": \"Your optimized title here\",\n      \"description\": \"Your optimized description here\",\n      \"strategy\": \"benefits\"\n    },\n    {\n      \"title\": \"Your optimized title here\",\n      \"description\": \"Your optimized description here\",\n      \"strategy\": \"social_proof\"\n    }\n  ]\n}\n\nReturn ONLY the JSON, no additional text or markdown formatting."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        1216,
+        240
+      ],
+      "id": "c16ccac9-586e-45db-aebb-305d3eaa95d4",
+      "name": "Message a model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Lvvk0xdSRvJoprT9",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Get url content": {
+      "main": [
+        [
+          {
+            "node": "Extract title tag and meta description",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract title tag and meta description": {
+      "main": [
+        [
+          {
+            "node": "Message a model1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get url content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "af743bd7-448b-403b-a217-b960a081bb2d",
+  "meta": {
+    "templateId": "2267",
+    "templateCredsSetupCompleted": true,
+    "instanceId": "4944bc1107b981d2f5f3679c3f44d4637dd856c01457456f9675c611af6437fe"
+  },
+  "id": "RLFPQW8hKqCpKs0uPtG6Q",
+  "tags": []
+}
