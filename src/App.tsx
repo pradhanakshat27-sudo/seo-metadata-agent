@@ -14,9 +14,11 @@ import {
 } from '@mui/material';
 import HistoryIcon from '@mui/icons-material/History';
 import SearchIcon from '@mui/icons-material/Search';
+import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 import InputForm from './InputForm';
 import CurrentMetadata from './CurrentMetadata';
 import VariationCard from './VariationCard';
+import CompetitorCard from './CompetitorCard';
 import HistoryPanel from './HistoryPanel';
 import { useHistory } from './hooks/useHistory';
 import type { MetadataData, APIResponseArray, APIResponse, HistoryEntry } from './types/api';
@@ -39,7 +41,6 @@ function App() {
     setError(null);
     setResult(null);
 
-    // Capture current values for use in async callbacks
     const submittedUrl = url;
     const submittedKeyword = keyword;
 
@@ -47,7 +48,7 @@ function App() {
       .post<APIResponseArray | APIResponse>(
         `${API_URL}/webhook/seo-metadata-agent`,
         { url, keyword },
-        { timeout: 30000 }
+        { timeout: 60000 }
       )
       .then((response) => {
         const first = Array.isArray(response.data)
@@ -161,7 +162,7 @@ function App() {
               }}
             >
               <CircularProgress />
-              <Typography variant="body1">Generating SEO insights...</Typography>
+              <Typography variant="body1">Analysing competitors & generating insights...</Typography>
             </Box>
           </Box>
         )}
@@ -189,7 +190,7 @@ function App() {
               </Typography>
             </Box>
             <Typography variant="body1" color="text.secondary" sx={{ pl: 0.5 }}>
-              Generate AI-optimized meta tags for your webpage
+              Generate AI-optimized meta tags using real competitor analysis
             </Typography>
           </Box>
 
@@ -209,11 +210,7 @@ function App() {
               severity="error"
               sx={{ mb: 3 }}
               action={
-                <Button
-                  color="inherit"
-                  size="small"
-                  onClick={() => setError(null)}
-                >
+                <Button color="inherit" size="small" onClick={() => setError(null)}>
                   Dismiss
                 </Button>
               }
@@ -227,16 +224,22 @@ function App() {
           {result && !isLoading && (
             <>
               <Divider sx={{ mb: 3 }} />
+
+              {/* Row 1: Current Metadata + Optimized Variations */}
               <Box
                 sx={{
                   display: 'grid',
                   gridTemplateColumns: { xs: '1fr', md: '2fr 3fr' },
                   gap: 3,
                   alignItems: 'start',
+                  mb: 4,
                 }}
               >
-                {/* Current metadata */}
-                <CurrentMetadata metadata={result.analysis.current} />
+                {/* Current metadata + competitor insight */}
+                <CurrentMetadata
+                  metadata={result.current}
+                  competitorInsight={result.competitorInsight}
+                />
 
                 {/* Variations */}
                 <Box>
@@ -252,6 +255,30 @@ function App() {
                   ))}
                 </Box>
               </Box>
+
+              {/* Row 2: Competitor Analysis */}
+              {result.competitors && result.competitors.length > 0 && (
+                <>
+                  <Divider sx={{ mb: 3 }} />
+                  <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <PeopleAltIcon sx={{ color: '#6366f1' }} />
+                    <Typography variant="h6" fontWeight={700}>
+                      Top Ranking Competitors
+                    </Typography>
+                  </Box>
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
+                      gap: 2,
+                    }}
+                  >
+                    {result.competitors.map((competitor) => (
+                      <CompetitorCard key={competitor.rank} competitor={competitor} />
+                    ))}
+                  </Box>
+                </>
+              )}
             </>
           )}
         </Container>

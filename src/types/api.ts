@@ -9,17 +9,23 @@ export interface APIResponse {
 export interface MetadataData {
   url: string;
   keyword: string;
-  analysis: {
-    current: CurrentMetadata;
-  };
+  current: CurrentMetadata;
+  competitors: CompetitorItem[];
+  competitorInsight: string;
   optimizedVariations: VariationItem[];
 }
 
 export interface CurrentMetadata {
   title: string;
-  titleLength: number;
   description: string;
-  descriptionLength: number;
+}
+
+export interface CompetitorItem {
+  rank: number;
+  title: string;
+  description: string;
+  url: string;
+  source: 'scraped' | 'serpapi_fallback';
 }
 
 export interface VariationItem {

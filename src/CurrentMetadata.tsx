@@ -1,8 +1,10 @@
-import { Paper, Typography, Box } from '@mui/material';
+import { Paper, Typography, Box, Divider } from '@mui/material';
+import LightbulbIcon from '@mui/icons-material/Lightbulb';
 import type { CurrentMetadata as CurrentMetadataType } from './types/api';
 
 interface CurrentMetadataProps {
   metadata: CurrentMetadataType;
+  competitorInsight?: string;
 }
 
 const codeBoxSx = {
@@ -16,7 +18,7 @@ const codeBoxSx = {
   lineHeight: 1.6,
 } as const;
 
-const CurrentMetadata = ({ metadata }: CurrentMetadataProps) => {
+const CurrentMetadata = ({ metadata, competitorInsight }: CurrentMetadataProps) => {
   return (
     <Paper
       elevation={0}
@@ -40,7 +42,7 @@ const CurrentMetadata = ({ metadata }: CurrentMetadataProps) => {
         </Typography>
       </Box>
 
-      <Box>
+      <Box sx={{ mb: competitorInsight ? 2.5 : 0 }}>
         <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 0.75 }}>
           Meta Description
         </Typography>
@@ -48,6 +50,32 @@ const CurrentMetadata = ({ metadata }: CurrentMetadataProps) => {
           {metadata.description}
         </Typography>
       </Box>
+
+      {competitorInsight && (
+        <>
+          <Divider sx={{ my: 2 }} />
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              p: 1.5,
+              borderRadius: 1.5,
+              backgroundColor: '#fefce8',
+              border: '1px solid #fde047',
+            }}
+          >
+            <LightbulbIcon sx={{ fontSize: 18, color: '#ca8a04', flexShrink: 0, mt: 0.1 }} />
+            <Box>
+              <Typography variant="caption" fontWeight={700} color="#92400e" sx={{ display: 'block', mb: 0.25 }}>
+                Competitor Insight
+              </Typography>
+              <Typography variant="body2" color="#78350f" sx={{ lineHeight: 1.5 }}>
+                {competitorInsight}
+              </Typography>
+            </Box>
+          </Box>
+        </>
+      )}
     </Paper>
   );
 };
