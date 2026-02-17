@@ -32,6 +32,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<MetadataData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [activeEntryId, setActiveEntryId] = useState<string | null>(null);
 
   const { history, addSuccess, addFailure, deleteEntry, clearAll } = useHistory();
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -67,7 +68,9 @@ function App() {
           return;
         }
         setResult(first.data);
-        addSuccess(submittedUrl, submittedKeyword, first.data);
+        const newId = Date.now().toString();
+        setActiveEntryId(newId);
+        addSuccess(submittedUrl, submittedKeyword, first.data, newId);
       })
       .catch((err: AxiosError) => {
         let msg: string;
@@ -91,6 +94,7 @@ function App() {
   const handleSelectHistory = (entry: HistoryEntry) => {
     setUrl(entry.url);
     setKeyword(entry.keyword);
+    setActiveEntryId(entry.id);
     if (entry.success && entry.result) {
       setResult(entry.result);
       setError(null);
@@ -100,6 +104,22 @@ function App() {
     }
   };
 
+  const handleDeleteEntry = (id: string) => {
+    deleteEntry(id);
+    if (id === activeEntryId) {
+      setResult(null);
+      setError(null);
+      setActiveEntryId(null);
+    }
+  };
+
+  const handleClearAll = () => {
+    clearAll();
+    setResult(null);
+    setError(null);
+    setActiveEntryId(null);
+  };
+
   return (
     <Box sx={{ minHeight: '100vh' }}>
       <HistoryPanel
@@ -107,8 +127,8 @@ function App() {
         open={sidebarOpen}
         onToggle={() => setSidebarOpen((o) => !o)}
         onSelect={handleSelectHistory}
-        onDelete={deleteEntry}
-        onClear={clearAll}
+        onDelete={handleDeleteEntry}
+        onClear={handleClearAll}
       />
 
       <Box

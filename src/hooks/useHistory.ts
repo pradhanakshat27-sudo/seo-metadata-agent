@@ -23,9 +23,9 @@ export function useHistory() {
     }
   }, [history]);
 
-  const addSuccess = (url: string, keyword: string, result: MetadataData) => {
+  const addSuccess = (url: string, keyword: string, result: MetadataData, id?: string) => {
     const entry: HistoryEntry = {
-      id: Date.now().toString(),
+      id: id ?? Date.now().toString(),
       timestamp: new Date().toISOString(),
       url,
       keyword,
