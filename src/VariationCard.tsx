@@ -9,8 +9,6 @@ import {
   Divider,
 } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import type { VariationItem } from './types/api';
 
 interface VariationCardProps {
@@ -52,27 +50,6 @@ const codeBoxSx = {
   fontSize: '0.875rem',
   lineHeight: 1.6,
 } as const;
-
-interface CharBadgeProps {
-  length: number;
-  meets: boolean;
-  range: string;
-}
-
-const CharBadge = ({ length, meets, range }: CharBadgeProps) => (
-  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-    {meets
-      ? <CheckCircleIcon sx={{ fontSize: 14, color: 'success.main' }} />
-      : <WarningAmberIcon sx={{ fontSize: 14, color: 'warning.main' }} />
-    }
-    <Typography
-      variant="caption"
-      sx={{ color: meets ? 'success.main' : 'warning.main', fontWeight: 600 }}
-    >
-      {length} chars {meets ? '✓' : `(target: ${range})`}
-    </Typography>
-  </Box>
-);
 
 const VariationCard = ({ variation, index }: VariationCardProps) => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -130,18 +107,10 @@ const VariationCard = ({ variation, index }: VariationCardProps) => {
           />
         </Box>
 
-        {/* Title */}
         <Box sx={{ mb: 2 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.75 }}>
-            <Typography variant="subtitle2" color="text.secondary">
-              Title
-            </Typography>
-            <CharBadge
-              length={variation.titleLength}
-              meets={variation.meetsRequirements.titleLength}
-              range="50–60"
-            />
-          </Box>
+          <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 0.75 }}>
+            Title
+          </Typography>
           <Typography variant="body1" sx={codeBoxSx}>
             {variation.title}
           </Typography>
@@ -149,18 +118,10 @@ const VariationCard = ({ variation, index }: VariationCardProps) => {
 
         <Divider sx={{ my: 1.5 }} />
 
-        {/* Description */}
         <Box sx={{ mb: 2 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.75 }}>
-            <Typography variant="subtitle2" color="text.secondary">
-              Description
-            </Typography>
-            <CharBadge
-              length={variation.descriptionLength}
-              meets={variation.meetsRequirements.descriptionLength}
-              range="150–160"
-            />
-          </Box>
+          <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 0.75 }}>
+            Description
+          </Typography>
           <Typography variant="body2" sx={codeBoxSx}>
             {variation.description}
           </Typography>
