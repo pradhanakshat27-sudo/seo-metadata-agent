@@ -20,6 +20,10 @@ const codeBoxSx = {
 
 const CurrentMetadata = ({ metadata, competitorInsight }: CurrentMetadataProps) => {
   return (
+    <Box>
+      <Typography variant="h6" fontWeight={700} gutterBottom>
+        Current Metadata
+      </Typography>
     <Paper
       elevation={0}
       sx={{
@@ -29,9 +33,6 @@ const CurrentMetadata = ({ metadata, competitorInsight }: CurrentMetadataProps) 
         background: 'linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)',
       }}
     >
-      <Typography variant="h6" gutterBottom>
-        Current Metadata
-      </Typography>
 
       <Box sx={{ mb: 2.5 }}>
         <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 0.75 }}>
@@ -77,6 +78,7 @@ const CurrentMetadata = ({ metadata, competitorInsight }: CurrentMetadataProps) 
         </>
       )}
     </Paper>
+    </Box>
   );
 };
 
