@@ -3,17 +3,253 @@
   "nodes": [
     {
       "parameters": {
+        "url": "https://serpapi.com/search.json",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $('Webhook').item.json.body.keyword }}\n"
+            },
+            {
+              "name": "api_key",
+              "value": "66a2f09cff5285036345e6d6c2419acc26fb4095fdbde39be472a630b71a8f76"
+            },
+            {
+              "name": "num",
+              "value": "3"
+            },
+            {
+              "name": "engine",
+              "value": "google"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        304,
+        784
+      ],
+      "id": "b6f8eddc-4227-47eb-ab20-4d982724eeb0",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.link }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "Accept",
+              "value": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
+            },
+            {
+              "name": "Accept-Language",
+              "value": "en-US,en;q=0.5"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7c5c5be6-82ad-4bee-8992-53aae481427d",
+      "name": "get competitor content",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        688,
+        784
+      ],
+      "typeVersion": 4.2,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "organic_results",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        512,
+        784
+      ],
+      "id": "7482997b-877e-4929-ad3c-34e3859a8d81",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1104,
+        624
+      ],
+      "id": "6916ea60-faef-4250-ac70-cd75308ce2a5",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "titleTag",
+              "cssSelector": "title"
+            },
+            {
+              "key": "metaDesc",
+              "cssSelector": "meta[name=\"description\"]",
+              "returnValue": "attribute",
+              "attribute": "content"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "bbbf773d-3e19-443d-bbe4-cf0ca9edc7b5",
+      "name": "Extract Meta",
+      "type": "n8n-nodes-base.html",
+      "position": [
+        656,
+        544
+      ],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "titleTag",
+              "cssSelector": "title"
+            },
+            {
+              "key": "metaDesc",
+              "cssSelector": "meta[name=\"description\"]",
+              "returnValue": "attribute",
+              "attribute": "content"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6f2fe541-6882-49b4-b80a-245068bc6955",
+      "name": "Extract Competitor Meta",
+      "type": "n8n-nodes-base.html",
+      "position": [
+        880,
+        784
+      ],
+      "typeVersion": 1.2,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
         "url": "={{ $json.body.url }}",
         "options": {}
       },
-      "id": "0f26bb3c-f2cc-476b-b1af-3d4cd98463ce",
-      "name": "Get url content",
+      "id": "7f42095f-f6d6-42b4-900c-f1c7390d5d14",
+      "name": "Get url content1",
       "type": "n8n-nodes-base.httpRequest",
       "position": [
-        864,
-        240
+        480,
+        544
       ],
       "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiResponse = $input.item.json.output[0].content[0].text;\n\nlet parsed;\ntry {\n  const cleanJson = aiResponse.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  parsed = JSON.parse(cleanJson);\n} catch (error) {\n  return { json: { success: false, error: \"Failed to parse AI response\", rawResponse: aiResponse } };\n}\n\nconst webhookData = $('Webhook').item.json.body;\nconst currentMeta = $('Extract Meta').item.json;\nconst serpItems = $('Split Out').all();\nconst scrapedItems = $('Extract Competitor Meta').all();\n\n// Build competitors with fallback logic\nconst competitors = serpItems.map((serpItem, i) => {\n  const scraped = scrapedItems[i];\n  \n  // Check if scraping gave real data (not an error)\n  const hasScrapedData = scraped && \n    !scraped.json.error && \n    scraped.json.titleTag;\n\n  return {\n    rank: i + 1,\n    title: hasScrapedData ? scraped.json.titleTag : (serpItem.json.title || 'N/A'),\n    description: hasScrapedData ? scraped.json.metaDesc : (serpItem.json.snippet || 'N/A'),\n    url: serpItem.json.link || 'N/A',\n    source: hasScrapedData ? 'scraped' : 'serpapi_fallback'\n  };\n});\n\nreturn {\n  json: {\n    success: true,\n    data: {\n      url: webhookData.url,\n      keyword: webhookData.keyword,\n      current: {\n        title: currentMeta.titleTag || 'No title found',\n        description: currentMeta.metaDesc || 'No description found'\n      },\n      competitors,\n      competitorInsight: parsed.competitors_analysis,\n      optimizedVariations: parsed.variations.map(v => ({\n        title: v.title,\n        titleLength: v.title.length,\n        description: v.description,\n        descriptionLength: v.description.length,\n        strategy: v.strategy,\n        meetsRequirements: {\n          titleLength: v.title.length >= 50 && v.title.length <= 60,\n          descriptionLength: v.description.length >= 150 && v.description.length <= 160\n        }\n      }))\n    }\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1712,
+        624
+      ],
+      "id": "1eeb883c-718a-4a48-ad7f-cfd1de854cd8",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3-flash-preview",
+          "mode": "list",
+          "cachedResultName": "models/gemini-3-flash-preview"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are a Senior SEO Specialist with 10+ years of experience optimizing metadata for e-commerce and SaaS websites. Your expertise includes:\n- Crafting compelling titles and descriptions that balance keyword optimization with human appeal\n- Understanding search intent and user psychology\n- Writing metadata that improves click-through rates (CTR)\n- Following current SEO best practices and character limits",
+              "role": "model"
+            },
+            {
+              "content": "=CONTEXT:\n* Page URL: {{ $('Webhook').item.json.body.url }}\n* Target Keyword: {{ $('Webhook').item.json.body.keyword }}\n\nYOUR CURRENT METADATA:\n* Title: {{ $('Extract Meta').item.json.titleTag || 'No title found' }}\n* Description: {{ $('Extract Meta').item.json.metaDesc || 'No description found' }}\n\nTOP 3 RANKING COMPETITORS FOR THIS KEYWORD:\n\nCompetitor 1:\n* URL: {{ $('Split Out').all()[0].json.link || 'N/A' }}\n* Title: {{ $('Extract Competitor Meta').all()[0]?.json?.titleTag || $('Split Out').all()[0].json.title || 'N/A' }}\n* Description: {{ $('Extract Competitor Meta').all()[0]?.json?.metaDesc || $('Split Out').all()[0].json.snippet || 'N/A' }}\n\nCompetitor 2:\n* URL: {{ $('Split Out').all()[1].json.link || 'N/A' }}\n* Title: {{ $('Extract Competitor Meta').all()[1]?.json?.titleTag || $('Split Out').all()[1].json.title || 'N/A' }}\n* Description: {{ $('Extract Competitor Meta').all()[1]?.json?.metaDesc || $('Split Out').all()[1].json.snippet || 'N/A' }}\n\nCompetitor 3:\n* URL: {{ $('Split Out').all()[2].json.link || 'N/A' }}\n* Title: {{ $('Extract Competitor Meta').all()[2]?.json?.titleTag || $('Split Out').all()[2].json.title || 'N/A' }}\n* Description: {{ $('Extract Competitor Meta').all()[2]?.json?.metaDesc || $('Split Out').all()[2].json.snippet || 'N/A' }}\n\nTASK: Analyze competitor metadata and generate 3 distinct variations that can outrank or out-click these competitors. Each variation uses a different strategy:\n1. Urgency/Scarcity\n2. Benefits/Value\n3. Social Proof/Authority\n\nRULES (STRICT - you must follow exactly):\n- Title: MUST be between 50-60 characters (count carefully before outputting)\n- Description: MUST be between 150-160 characters (count carefully before outputting)\n- Include the target keyword naturally in both title and description\n- Each variation must use a different strategy (urgency, benefits, social_proof)\n- Do NOT exceed character limits under any circumstances\n- Count characters precisely: spaces and punctuation count\n- If your draft exceeds the limit, shorten it before outputting\n\n\nOUTPUT FORMAT (JSON only, no markdown):\n{\n  \"competitors_analysis\": \"One sentence summary of patterns noticed\",\n  \"variations\": [\n    { \"title\": \"...\", \"description\": \"...\", \"strategy\": \"urgency\" },\n    { \"title\": \"...\", \"description\": \"...\", \"strategy\": \"benefits\" },\n    { \"title\": \"...\", \"description\": \"...\", \"strategy\": \"social_proof\" }\n  ]\n}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        1360,
+        304
+      ],
+      "id": "942d2a5e-1e42-4a80-9038-7e26d29157e6",
+      "name": "Message a model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "d7wuc7iBWVhzz6dm",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=CONTEXT:\n* Page URL: {{ $('Webhook').item.json.body.url }}\n* Target Keyword: {{ $('Webhook').item.json.body.keyword }}\n\nYOUR CURRENT METADATA:\n* Title: {{ $('Extract Meta').item.json.titleTag || 'No title found' }}\n* Description: {{ $('Extract Meta').item.json.metaDesc || 'No description found' }}\n\nTOP 3 RANKING COMPETITORS FOR THIS KEYWORD:\n\nCompetitor 1:\n* URL: {{ $('Split Out').all()[0].json.link || 'N/A' }}\n* Title: {{ $('Extract Competitor Meta').all()[0]?.json?.titleTag || $('Split Out').all()[0].json.title || 'N/A' }}\n* Description: {{ $('Extract Competitor Meta').all()[0]?.json?.metaDesc || $('Split Out').all()[0].json.snippet || 'N/A' }}\n\nCompetitor 2:\n* URL: {{ $('Split Out').all()[1].json.link || 'N/A' }}\n* Title: {{ $('Extract Competitor Meta').all()[1]?.json?.titleTag || $('Split Out').all()[1].json.title || 'N/A' }}\n* Description: {{ $('Extract Competitor Meta').all()[1]?.json?.metaDesc || $('Split Out').all()[1].json.snippet || 'N/A' }}\n\nCompetitor 3:\n* URL: {{ $('Split Out').all()[2].json.link || 'N/A' }}\n* Title: {{ $('Extract Competitor Meta').all()[2]?.json?.titleTag || $('Split Out').all()[2].json.title || 'N/A' }}\n* Description: {{ $('Extract Competitor Meta').all()[2]?.json?.metaDesc || $('Split Out').all()[2].json.snippet || 'N/A' }}\n\nTASK: Analyze competitor metadata and generate 3 distinct variations that can outrank or out-click these competitors. Each variation uses a different strategy:\n1. Urgency/Scarcity\n2. Benefits/Value\n3. Social Proof/Authority\n\nRULES (STRICT - you must follow exactly):\n- Title: MUST be between 50-60 characters (count carefully before outputting)\n- Description: MUST be between 150-160 characters (count carefully before outputting)\n- Include the target keyword naturally in both title and description\n- Each variation must use a different strategy (urgency, benefits, social_proof)\n- Do NOT exceed character limits under any circumstances\n- Count characters precisely: spaces and punctuation count\n- If your draft exceeds the limit, shorten it before outputting\n\n\nOUTPUT FORMAT (JSON only, no markdown):\n{\n  \"competitors_analysis\": \"One sentence summary of patterns noticed\",\n  \"variations\": [\n    { \"title\": \"...\", \"description\": \"...\", \"strategy\": \"urgency\" },\n    { \"title\": \"...\", \"description\": \"...\", \"strategy\": \"benefits\" },\n    { \"title\": \"...\", \"description\": \"...\", \"strategy\": \"social_proof\" }\n  ]\n}"
+            },
+            {
+              "role": "system",
+              "content": "You are a Senior SEO Specialist with 10+ years of experience optimizing metadata for e-commerce and SaaS websites. Your expertise includes:\n- Crafting compelling titles and descriptions that balance keyword optimization with human appeal\n- Understanding search intent and user psychology\n- Writing metadata that improves click-through rates (CTR)\n- Following current SEO best practices and character limits"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1328,
+        624
+      ],
+      "id": "5286e497-c2cb-4236-acb3-028ef7e5d890",
+      "name": "Message a model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "PuFnFVPDnUXn6K0m",
+          "name": "OpenAi account"
+        }
+      }
     },
     {
       "parameters": {
@@ -42,253 +278,16 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        528,
-        240
+        144,
+        544
       ],
-      "id": "37e7062e-25ae-4474-86e1-ec1f6443e56c",
+      "id": "80dd727b-d3de-4b22-be5c-15228d759014",
       "name": "Webhook",
       "webhookId": "a48e3cdd-5a73-4d14-843e-d8ed0651ac82"
-    },
-    {
-      "parameters": {
-        "jsCode": "const aiResponse = $input.item.json.content.parts[0].text;\nlet parsed;\ntry {\n  const cleanJson = aiResponse.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  parsed = JSON.parse(cleanJson);\n} catch (error) {\n  return { json: { success: false, error: \"Failed to parse AI response\", rawResponse: aiResponse } };\n}\n\nconst webhookData = $('Webhook').item.json.body;\nconst currentMeta = $('Extract Meta').item.json;\nconst serpItems = $('Split Out').all();\nconst scrapedItems = $('Extract Competitor Meta').all();\n\n// Build competitors with fallback logic\nconst competitors = serpItems.map((serpItem, i) => {\n  const scraped = scrapedItems[i];\n  \n  // Check if scraping gave real data (not an error)\n  const hasScrapedData = scraped && \n    !scraped.json.error && \n    scraped.json.titleTag;\n\n  return {\n    rank: i + 1,\n    title: hasScrapedData ? scraped.json.titleTag : (serpItem.json.title || 'N/A'),\n    description: hasScrapedData ? scraped.json.metaDesc : (serpItem.json.snippet || 'N/A'),\n    url: serpItem.json.link || 'N/A',\n    source: hasScrapedData ? 'scraped' : 'serpapi_fallback'\n  };\n});\n\nreturn {\n  json: {\n    success: true,\n    data: {\n      url: webhookData.url,\n      keyword: webhookData.keyword,\n      current: {\n        title: currentMeta.titleTag || 'No title found',\n        description: currentMeta.metaDesc || 'No description found'\n      },\n      competitors,\n      competitorInsight: parsed.competitors_analysis,\n      optimizedVariations: parsed.variations.map(v => ({\n        title: v.title,\n        titleLength: v.title.length,\n        description: v.description,\n        descriptionLength: v.description.length,\n        strategy: v.strategy,\n        meetsRequirements: {\n          titleLength: v.title.length >= 50 && v.title.length <= 60,\n          descriptionLength: v.description.length >= 150 && v.description.length <= 160\n        }\n      }))\n    }\n  }\n};\n"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2112,
-        336
-      ],
-      "id": "55eacd4a-1f6d-4f3e-85ee-a2d8192fce44",
-      "name": "Code in JavaScript"
-    },
-    {
-      "parameters": {
-        "modelId": {
-          "__rl": true,
-          "value": "models/gemini-2.5-flash",
-          "mode": "list",
-          "cachedResultName": "models/gemini-2.5-flash"
-        },
-        "messages": {
-          "values": [
-            {
-              "content": "You are a Senior SEO Specialist with 10+ years of experience optimizing metadata for e-commerce and SaaS websites. Your expertise includes:\n- Crafting compelling titles and descriptions that balance keyword optimization with human appeal\n- Understanding search intent and user psychology\n- Writing metadata that improves click-through rates (CTR)\n- Following current SEO best practices and character limits",
-              "role": "model"
-            },
-            {
-              "content": "=CONTEXT:\n* Page URL: {{ $('Webhook').item.json.body.url }}\n* Target Keyword: {{ $('Webhook').item.json.body.keyword }}\n\nYOUR CURRENT METADATA:\n* Title: {{ $('Extract Meta').item.json.titleTag || 'No title found' }}\n* Description: {{ $('Extract Meta').item.json.metaDesc || 'No description found' }}\n\nTOP 3 RANKING COMPETITORS FOR THIS KEYWORD:\n\nCompetitor 1:\n* URL: {{ $('Split Out').all()[0].json.link || 'N/A' }}\n* Title: {{ $('Extract Competitor Meta').all()[0]?.json?.titleTag || $('Split Out').all()[0].json.title || 'N/A' }}\n* Description: {{ $('Extract Competitor Meta').all()[0]?.json?.metaDesc || $('Split Out').all()[0].json.snippet || 'N/A' }}\n\nCompetitor 2:\n* URL: {{ $('Split Out').all()[1].json.link || 'N/A' }}\n* Title: {{ $('Extract Competitor Meta').all()[1]?.json?.titleTag || $('Split Out').all()[1].json.title || 'N/A' }}\n* Description: {{ $('Extract Competitor Meta').all()[1]?.json?.metaDesc || $('Split Out').all()[1].json.snippet || 'N/A' }}\n\nCompetitor 3:\n* URL: {{ $('Split Out').all()[2].json.link || 'N/A' }}\n* Title: {{ $('Extract Competitor Meta').all()[2]?.json?.titleTag || $('Split Out').all()[2].json.title || 'N/A' }}\n* Description: {{ $('Extract Competitor Meta').all()[2]?.json?.metaDesc || $('Split Out').all()[2].json.snippet || 'N/A' }}\n\nTASK: Analyze competitor metadata and generate 3 distinct variations that can outrank or out-click these competitors. Each variation uses a different strategy:\n1. Urgency/Scarcity\n2. Benefits/Value\n3. Social Proof/Authority\n\nRULES (STRICT - you must follow exactly):\n- Title: MUST be between 50-60 characters (count carefully before outputting)\n- Description: MUST be between 150-160 characters (count carefully before outputting)\n- Include the target keyword naturally in both title and description\n- Each variation must use a different strategy (urgency, benefits, social_proof)\n- Do NOT exceed character limits under any circumstances\n- Count characters precisely: spaces and punctuation count\n- If your draft exceeds the limit, shorten it before outputting\n\n\nOUTPUT FORMAT (JSON only, no markdown):\n{\n  \"competitors_analysis\": \"One sentence summary of patterns noticed\",\n  \"variations\": [\n    { \"title\": \"...\", \"description\": \"...\", \"strategy\": \"urgency\" },\n    { \"title\": \"...\", \"description\": \"...\", \"strategy\": \"benefits\" },\n    { \"title\": \"...\", \"description\": \"...\", \"strategy\": \"social_proof\" }\n  ]\n}"
-            }
-          ]
-        },
-        "builtInTools": {},
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.googleGemini",
-      "typeVersion": 1.1,
-      "position": [
-        1712,
-        320
-      ],
-      "id": "c16ccac9-586e-45db-aebb-305d3eaa95d4",
-      "name": "Message a model1",
-      "credentials": {
-        "googlePalmApi": {
-          "id": "Lvvk0xdSRvJoprT9",
-          "name": "Google Gemini(PaLM) Api account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "url": "https://serpapi.com/search.json",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "q",
-              "value": "={{ $('Webhook').item.json.body.keyword }}\n"
-            },
-            {
-              "name": "api_key",
-              "value": "66a2f09cff5285036345e6d6c2419acc26fb4095fdbde39be472a630b71a8f76"
-            },
-            {
-              "name": "num",
-              "value": "3"
-            },
-            {
-              "name": "engine",
-              "value": "google"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "position": [
-        688,
-        480
-      ],
-      "id": "c8ed8914-16eb-458c-846d-f86e96fb22b7",
-      "name": "HTTP Request"
-    },
-    {
-      "parameters": {
-        "url": "={{ $json.link }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "User-Agent",
-              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            },
-            {
-              "name": "Accept",
-              "value": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
-            },
-            {
-              "name": "Accept-Language",
-              "value": "en-US,en;q=0.5"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "74ad1f9d-0fa9-4ad8-b70f-11609fc0085b",
-      "name": "get competitor content",
-      "type": "n8n-nodes-base.httpRequest",
-      "position": [
-        1072,
-        480
-      ],
-      "typeVersion": 4.2,
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "fieldToSplitOut": "organic_results",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.splitOut",
-      "typeVersion": 1,
-      "position": [
-        896,
-        480
-      ],
-      "id": "70bedd53-9a3e-4901-bb52-57a3185731b1",
-      "name": "Split Out"
-    },
-    {
-      "parameters": {},
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3.2,
-      "position": [
-        1488,
-        320
-      ],
-      "id": "5b26412e-e7f4-42ca-80f7-928bd8a3757d",
-      "name": "Merge"
-    },
-    {
-      "parameters": {
-        "operation": "extractHtmlContent",
-        "extractionValues": {
-          "values": [
-            {
-              "key": "titleTag",
-              "cssSelector": "title"
-            },
-            {
-              "key": "metaDesc",
-              "cssSelector": "meta[name=\"description\"]",
-              "returnValue": "attribute",
-              "attribute": "content"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "3c67c390-5144-44cb-8618-d7e7e6c6cae5",
-      "name": "Extract Meta",
-      "type": "n8n-nodes-base.html",
-      "position": [
-        1040,
-        240
-      ],
-      "typeVersion": 1.2
-    },
-    {
-      "parameters": {
-        "operation": "extractHtmlContent",
-        "extractionValues": {
-          "values": [
-            {
-              "key": "titleTag",
-              "cssSelector": "title"
-            },
-            {
-              "key": "metaDesc",
-              "cssSelector": "meta[name=\"description\"]",
-              "returnValue": "attribute",
-              "attribute": "content"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "d433cc9d-2612-454b-b6ab-ea1a93eab5b7",
-      "name": "Extract Competitor Meta",
-      "type": "n8n-nodes-base.html",
-      "position": [
-        1264,
-        480
-      ],
-      "typeVersion": 1.2,
-      "onError": "continueRegularOutput"
     }
   ],
   "pinData": {},
   "connections": {
-    "Get url content": {
-      "main": [
-        [
-          {
-            "node": "Extract Meta",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook": {
-      "main": [
-        [
-          {
-            "node": "Get url content",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "HTTP Request",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Message a model1": {
-      "main": [
-        [
-          {
-            "node": "Code in JavaScript",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "HTTP Request": {
       "main": [
         [
@@ -354,6 +353,49 @@
           }
         ]
       ]
+    },
+    "Get url content1": {
+      "main": [
+        [
+          {
+            "node": "Extract Meta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        []
+      ]
+    },
+    "Message a model1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get url content1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
@@ -362,12 +404,11 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "209fc8fb-49e7-4883-b668-61fe761fcb41",
+  "versionId": "5e3edd2a-a162-4598-9591-edeea54de580",
   "meta": {
-    "templateId": "2267",
     "templateCredsSetupCompleted": true,
-    "instanceId": "4944bc1107b981d2f5f3679c3f44d4637dd856c01457456f9675c611af6437fe"
+    "instanceId": "b4085077c0880f49927458db7e6a8eab949246ff3e056b90db1bcfe32069f466"
   },
-  "id": "RLFPQW8hKqCpKs0uPtG6Q",
+  "id": "FFXvjFF8OHF5JMcC",
   "tags": []
 }
